@@ -45,13 +45,33 @@ hr{border:none;border-top:1px solid #e2e8f0;margin:14px 0;}
 #editCanvas{width:auto;height:auto;touch-action:none;display:block;}
 #hintTools{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px;}
 #hintText{width:100%;min-height:64px;font-size:16px;padding:10px 12px;border:1px solid #cbd5e1;border-radius:12px;box-sizing:border-box;}
+
+/* ===== 正解後レビュー表示 ===== */
+#choices.review { pointer-events: none; }
+#choices .choice.correct{
+  border-color:#16a34a;
+  background:rgba(22,163,74,0.15);
+  font-weight:700;
+}
+
+
+/* 復習中は背景を暗くしない */
+body.reviewing #overlay,
+body.reviewing .overlay {
+  background: transparent !important;
+}
+
+
+/* 復習表示では画面を暗くしない（choicesオーバーレイ背景を透明に） */
+#choices.review { background: transparent !important; }
+
 </style>
 <style>#editBtn,#editModal{display:none !important;}</style>
 </head>
-<body>
+<body class="reviewing">
 
 <header>
-  <div id="qText">『花より団子』　このことわざの意味は？</div>
+  <div id="qText">『急がば回れ』　このことわざの意味は？</div>
   <button id="editBtn">編集</button>
 </header>
 
@@ -59,21 +79,21 @@ hr{border:none;border-top:1px solid #e2e8f0;margin:14px 0;}
   <div id="imageWrap">
     <canvas id="canvas" width="1536" height="1024" style="width: 819px; height: 546px; display: block; margin-left: auto; margin-right: auto;"></canvas>
     <div id="overlayMessage" class="ok" style="display: none;">正解！</div>
-    <div id="toast" style="display: none;">途中から足が埋まってるように見える……？　ことわざには関係ない。</div>
+    <div id="toast" style="display: none;"></div>
   </div>
   <div id="controls">
-    <button id="knowBtn">答えがわかった</button>
-    <button id="nextBtn" class="secondary" style="display: none;" data-mode="">次へ</button>
+    <button id="knowBtn" disabled="">答えがわかった</button>
+    <button id="nextBtn" class="secondary" style="display: inline-block;" data-mode="">次へ</button>
     <button id="restartBtn" class="secondary" style="display:none;">もう一回</button>
   </div>
 </main>
 
-<div id="choices" style="display: none;">
+<div id="choices" class="review" style="display: flex;">
   <div class="panel">
-    <div class="choice" data-i="0">一番上は長男、一番下は三男、間にはさまれるのが次男ということ</div>
-    <div class="choice" data-i="1">花と団子を、同時に楽しむこと</div>
-    <div class="choice" data-i="2">きれいな花を、長く大切にすること</div>
-    <div class="choice" data-i="3">見た目よりも、実際に役に立つものを選ぶこと</div>
+    <div class="choice" data-i="0">急いでいるときは、走り回れば早く着くこと</div>
+    <div class="choice correct" data-i="1">急いでいるときほど、確実で安全な方法を選ぶこと</div>
+    <div class="choice" data-i="2">遠回りをすれば、必ずうまくいくこと</div>
+    <div class="choice" data-i="3">思いついたら、すぐ行動すること</div>
   </div>
 </div>
 
@@ -82,7 +102,7 @@ hr{border:none;border-top:1px solid #e2e8f0;margin:14px 0;}
   <div class="box">
     <div class="row" style="justify-content:space-between;">
       <div class="row">
-        <span class="badge" id="editIndexBadge">問題 4 / 10</span>
+        <span class="badge" id="editIndexBadge">問題 1 / 10</span>
         <label class="row" style="gap:6px;font-size:14px;color:#0f172a;">
           <input type="checkbox" id="editEnabled">この問題を使う
         </label>
@@ -98,11 +118,11 @@ hr{border:none;border-top:1px solid #e2e8f0;margin:14px 0;}
     </div>
 
     <div class="tabs">
-      <button class="tabBtn" data-tab="tabQ">問題設定</button>
-      <button class="tabBtn active" data-tab="tabH">画像・ヒント</button>
+      <button class="tabBtn active" data-tab="tabQ">問題設定</button>
+      <button class="tabBtn" data-tab="tabH">画像・ヒント</button>
     </div>
 
-    <div id="tabQ" class="tabPanel">
+    <div id="tabQ" class="tabPanel active">
       <hr>
       <div class="field">
         <label>問題文（1行）</label>
@@ -132,7 +152,7 @@ hr{border:none;border-top:1px solid #e2e8f0;margin:14px 0;}
       </div>
 </div>
 
-    <div id="tabH" class="tabPanel active">
+    <div id="tabH" class="tabPanel">
       <hr>
       <div class="field">
         <label>問題の画像（この問題専用）</label>
@@ -143,7 +163,7 @@ hr{border:none;border-top:1px solid #e2e8f0;margin:14px 0;}
 
       <div class="field">
         <label>ヒント領域（楕円・四角）</label>
-        <div id="editCanvasWrap"><canvas id="editCanvas" width="1536" height="1024" style="width: 765px; height: 510px; display: block; margin-left: auto; margin-right: auto;"></canvas></div>
+        <div id="editCanvasWrap"><canvas id="editCanvas" width="1536" height="1024" style="width: 1536px; height: 1024px; display: block; margin-left: auto; margin-right: auto;"></canvas></div>
 
         <div id="hintTools">
           <span class="badge" id="selBadge">未選択</span>
@@ -460,6 +480,10 @@ function showHintAt(index){
 }
 
 function renderQuestion(){
+  if(typeof choices!=="undefined" && choices){
+    choices.style.display="none";
+    clearReviewChoices();
+  }
   const {active} = activePack();
   const q = active[qi];
 
@@ -490,6 +514,8 @@ function renderQuestion(){
 knowBtn.onclick = ()=>{ if(!solved) choices.style.display = "flex"; };
 
 choices.onclick = e=>{
+  if(typeof choices==="undefined" || !choices) return;
+  if(choices.classList.contains("review")) return;
   if(!e.target.classList.contains("choice")) return;
   const sel = Number(e.target.dataset.i);
   const {active} = activePack();
@@ -500,10 +526,13 @@ choices.onclick = e=>{
     solved = true;
     knowBtn.disabled = true;
     showOverlayTemp("正解！","ok", () => {
+      showReviewChoices(q.correct);
+
       const {active} = activePack();
       if(qi < active.length-1){
         nextBtn.style.display = "inline-block";
       }else{
+        // showOverlayPersist("終了","ok");
         if(endUrl){
           nextBtn.textContent = "次へ";
           nextBtn.style.display = "inline-block";
@@ -541,6 +570,23 @@ function showOverlayTemp(text,cls,after){
     overlay.style.display="none";
     if(after) after();
   },1200);
+}
+
+function clearReviewChoices(){
+  document.body.classList.remove("reviewing");
+  if(typeof choices === "undefined" || !choices) return;
+  choices.classList.remove("review");
+  document.querySelectorAll("#choices .choice").forEach(el=>el.classList.remove("correct"));
+}
+function showReviewChoices(correctIndex){
+  try{ overlay.style.display = "none"; }catch(e){}
+  document.body.classList.add("reviewing");
+  if(typeof choices === "undefined" || !choices) return;
+  choices.style.display = "flex";
+  choices.classList.add("review");
+  document.querySelectorAll("#choices .choice").forEach(el=>el.classList.remove("correct"));
+  const correctEl = document.querySelector(`#choices .choice[data-i="${correctIndex}"]`);
+  if(correctEl) correctEl.classList.add("correct");
 }
 function showOverlayPersist(text,cls){
   overlay.textContent = text;
